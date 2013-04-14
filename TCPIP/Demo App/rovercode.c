@@ -81,9 +81,9 @@ IFS1bits.AD1IF=0;
 int riverOn=0;
 int j=0;
 int speed1=0x7fff;
-int pos1=0, pos1ref=0;
+
 int speed2=0x7fff;
-int pos2=0, pos2ref=0;
+
 int rCount=0;
 int river[25]={0};
 int speedSame=0;
@@ -100,28 +100,25 @@ void __attribute((interrupt(ipl2), vector(_TIMER_5_VECTOR), nomips16)) _T5Interr
 
 void __attribute((interrupt(ipl4), vector(_INPUT_CAPTURE_1_VECTOR), nomips16)) _IC1Interrupt(void)
 {
-if(speedSame&& pos1%5)
-{
-	if((pos1-pos1ref)!=(pos2-pos2ref))
-	{
-		speed1+=(pos2-pos2ref)-(pos1-pos1ref);
-		
-	}
-}
+
 if (speed1>0) 
 {
 	pos1++; 
+	//if the user has requested a riverbed profile every 2nd motor position increment
+	//take a value of data
 	if(riverOn && pos1%2)
 	{
+		//takes the mean value of the two infra-red sensors
 		river[rCount]=(LINEA+LINEB)/2;
 		
+		//every 24 items of data reset the count and send the data to the earth station
 		if(rCount==24)
 		{
 			rCount=0;
 			SendRiverData();
 		}
 		else
-			rCount++;
+			rCount++; //keeps a count of array position
 	}
 }
 else pos1--;
@@ -130,8 +127,10 @@ IFS0bits.IC1IF=0;
 }
 void SendRiverData(void)
 {
+	//sends the TCP packet head, specifying 100 items of data and a type code of 46
 	POSTTCPhead(100,46);
 	
+	//loop to send the data
 	for(j=0; j<(25); j++)
 	{
 		POSTTCPchar(river[j]);
@@ -595,7 +594,7 @@ void processcommand(void)		// the main routine which processes commands
 	case 46:
 		if(commandlen==0) //send rover memory!
 		{
-			riverOn=1;
+			riverOn^=1; //toggles river mode
 		}
 		break;
 		
